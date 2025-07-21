@@ -13,3 +13,6 @@ bookmarks.json
 
 # ChromaDB persistent directory
 chroma_db/
+
+# Ignore Playwright cache
+playwright/.cache/
