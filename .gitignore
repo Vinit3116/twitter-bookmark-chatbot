@@ -1,0 +1,15 @@
+# Python virtual environment
+venv/
+
+# Python compiled files
+__pycache__/
+*.pyc
+
+# Environment variables (contains sensitive info)
+.env
+
+# Scraped data output
+bookmarks.json
+
+# ChromaDB persistent directory
+chroma_db/

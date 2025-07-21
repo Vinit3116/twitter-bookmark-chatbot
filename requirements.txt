@@ -1,0 +1,8 @@
+playwright
+pandas
+google-generativeai
+langchain
+langgraph
+chromadb
+python-dotenv
+streamlit
