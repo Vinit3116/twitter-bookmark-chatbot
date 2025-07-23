@@ -217,5 +217,21 @@ def run_scraper():
         # Close browser
         browser.close()
 
+def load_bookmarks(filepath="scraper/bookmarks.json"):
+    """
+    Loads the scraped tweet data from bookmarks.json.
+
+    Args:
+        filepath (str): Path to the bookmarks JSON file.
+
+    Returns:
+        list: A list of tweet dictionaries.
+    """
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Bookmark file not found: {filepath}")
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 if __name__ == "__main__":
     run_scraper()

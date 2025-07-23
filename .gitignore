@@ -10,6 +10,7 @@ __pycache__/
 
 # Scraped data output
 bookmarks.json
+temp_uploaded_bookmarks/
 
 # ChromaDB persistent directory
 chroma_db/
