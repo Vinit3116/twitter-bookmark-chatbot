@@ -261,15 +261,15 @@ cd ..
 
 ### 1. Ensure you're in the **project root directory**:
 
-    ```bash
+```
     cd twitter-bookmark-chatbot
-    ```
+```
 
 ### 2. Start the Streamlit application:
 
-    ```bash
+```
     streamlit run streamlit_ui.py
-    ```
+```
 
 ### 3. Visit [http://localhost:8501](http://localhost:8501) in your web browser.
 
