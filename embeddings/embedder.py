@@ -1,121 +1,156 @@
+# embeddings/embedder.py
+
 import os
 import json
 import chromadb
+from chromadb.utils import embedding_functions
 import google.generativeai as genai
 from dotenv import load_dotenv
+import logging
 from tqdm import tqdm
-from chromadb.config import Settings
-from chromadb.utils.embedding_functions import EmbeddingFunction
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Load environment variables
+load_dotenv()
 
 # --- Configuration ---
-load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
 if not GEMINI_API_KEY:
-    print("❌ ERROR: GEMINI_API_KEY not found in .env file. Please set it in your .env file.")
-    exit(1)
+    logging.error("GEMINI_API_KEY not found in .env file. Please set it to proceed.")
+    exit("Exiting: GEMINI_API_KEY is required.")
 
+# Configure the Google Generative AI client for embeddings
+genai.configure(api_key=GEMINI_API_KEY)
+
+# Path to your scraped bookmarks JSON file
 BOOKMARKS_FILE = 'scraper/bookmarks.json'
+# Name for your ChromaDB collection
 CHROMA_COLLECTION_NAME = 'twitter_bookmarks'
-CHROMA_DB_PATH = './chroma_db'
+# Directory to store ChromaDB data (relative to the project root)
+CHROMA_DB_PATH = './chroma_db' 
 
+# Gemini Embedding Model
+EMBEDDING_MODEL_GEMINI = 'models/embedding-001' # This outputs 768-dimensional embeddings
+EMBEDDING_DIMENSION = 768 # Explicitly set for this model
 
-# --- Gemini Embedding Function ---
-class GeminiEmbeddingFunction(EmbeddingFunction):
-    def __init__(self, api_key: str, model_name: str = "models/embedding-001"):
+# --- Custom Gemini Embedding Function for ChromaDB ---
+class GeminiEmbeddingFunction(embedding_functions.EmbeddingFunction):
+    def __init__(self, api_key: str, model_name: str = EMBEDDING_MODEL_GEMINI):
         self.api_key = api_key
         self.model_name = model_name
         genai.configure(api_key=self.api_key)
-        print(f"✅ Gemini embedding model '{self.model_name}' configured.")
+        logging.info(f"Gemini embedding model '{self.model_name}' configured for documents.")
 
-    def __call__(self, texts: list[str]) -> list[list[float]]:
+    def __call__(self, texts: list[str]):
+        """Generates embeddings for a list of texts using the Gemini API."""
         embeddings = []
         for text in texts:
             try:
                 response = genai.embed_content(
-                    model=self.model_name,
-                    content=text,  # ✅ pass single string
-                    task_type="retrieval_document",
-                    title="Tweet Bookmark"
+                    model=self.model_name, 
+                    content=[text], 
+                    task_type="retrieval_document"
                 )
-                embeddings.append(response['embedding'])
+                embeddings.append(response['embedding'][0])
             except Exception as e:
-                print(f"❌ Error embedding text: {text[:50]}... → {e}")
-                embeddings.append([0.0] * 768)
+                logging.error(f"Error generating embedding for text: '{text[:50]}...': {e}")
+                embeddings.append([0.0] * EMBEDDING_DIMENSION) # Fallback with correct dimension
         return embeddings
 
+# Initialize the custom embedding function
+gemini_ef = GeminiEmbeddingFunction(api_key=GEMINI_API_KEY)
 
-# --- Load bookmarks ---
+# --- Core Functions ---
+
 def load_bookmarks(file_path):
+    """Loads bookmarked tweets from a JSON file."""
     if not os.path.exists(file_path):
-        print(f"❌ Bookmarks file not found: {file_path}")
+        logging.error(f"Bookmarks file not found: {file_path}")
         return []
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             bookmarks = json.load(f)
-        print(f"✅ Loaded {len(bookmarks)} bookmarks from {file_path}")
+        logging.info(f"Loaded {len(bookmarks)} bookmarks from {file_path}")
         return bookmarks
+    except json.JSONDecodeError as e:
+        logging.error(f"Error decoding JSON from {file_path}: {e}")
+        return []
     except Exception as e:
-        print(f"❌ Error loading bookmarks: {e}")
+        logging.error(f"An unexpected error occurred while loading bookmarks: {e}")
         return []
 
-
-# --- ChromaDB + Embedding ---
 def create_or_update_knowledge_base(bookmarks):
-    client = chromadb.PersistentClient(
-        path=CHROMA_DB_PATH,
-        settings=Settings(anonymized_telemetry=False)
-    )
-
-    gemini_ef = GeminiEmbeddingFunction(api_key=GEMINI_API_KEY)
-
+    """
+    Creates or loads a ChromaDB collection and adds new tweet data and embeddings.
+    It intelligently avoids re-adding tweets that are already present in the collection
+    by checking their 'tweet_url'.
+    """
+    client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+    
     collection = client.get_or_create_collection(
         name=CHROMA_COLLECTION_NAME,
-        embedding_function=gemini_ef
+        embedding_function=gemini_ef # Pass our custom Gemini embedding function here
     )
+    logging.info(f"ChromaDB collection '{CHROMA_COLLECTION_NAME}' ready. Current documents: {collection.count()}")
 
-    print(f"✅ ChromaDB collection '{CHROMA_COLLECTION_NAME}' ready. Current documents: {collection.count()}")
+    existing_tweet_urls = set()
+    if collection.count() > 0:
+        try:
+            existing_docs = collection.get(
+                where={"tweet_url": {"$ne": None}}, 
+                include=['metadatas']
+            )
+            for doc_metadata in existing_docs.get('metadatas', []):
+                if 'tweet_url' in doc_metadata:
+                    existing_tweet_urls.add(doc_metadata['tweet_url'])
+            logging.info(f"Found {len(existing_tweet_urls)} existing tweet URLs in ChromaDB.")
+        except Exception as e:
+            logging.warning(f"Could not retrieve existing documents from ChromaDB: {e}. Proceeding as if no existing tweets.")
+            existing_tweet_urls = set()
 
-    existing_urls = set()
-    try:
-        existing_data = collection.get(include=['metadatas'])
-        for meta in existing_data.get("metadatas", []):
-            if meta.get("tweet_url"):
-                existing_urls.add(meta["tweet_url"])
-    except Exception as e:
-        print(f"⚠️ Warning while checking existing documents: {e}")
+    documents_to_add = [] 
+    metadatas_to_add = []
+    ids_to_add = []       
+    
+    logging.info("Preparing new tweets for embedding and ChromaDB storage...")
+    for tweet in tqdm(bookmarks, desc="Processing Tweets"):
+        tweet_url = tweet.get('tweet_url')
+        content_text = tweet.get('content', '')
 
-    new_docs = []
-    new_metas = []
-    new_ids = []
-
-    print("⏳ Preparing new tweets for embedding and ChromaDB storage...")
-    for i, tweet in enumerate(tqdm(bookmarks, desc="Processing Tweets")):
-        url = tweet.get("tweet_url")
-        content = tweet.get("content", "")
-
-        if not url or not content or content == "N/A" or url in existing_urls:
+        if not tweet_url or not content_text or content_text == "N/A" or tweet_url in existing_tweet_urls:
             continue
+        
+        documents_to_add.append(content_text)
+        metadatas_to_add.append(tweet)
+        ids_to_add.append(tweet_url)
 
-        new_docs.append(content)
-        new_metas.append(tweet)
-        new_ids.append(url)
-
-    if new_docs:
-        print(f"⏳ Adding {len(new_docs)} new tweets to ChromaDB...")
-        collection.add(documents=new_docs, metadatas=new_metas, ids=new_ids)
-        print(f"✅ Successfully added {len(new_docs)} new tweets to ChromaDB.")
+    if documents_to_add:
+        try:
+            logging.info(f"Adding {len(documents_to_add)} new tweets to ChromaDB...")
+            collection.add(
+                documents=documents_to_add,
+                metadatas=metadatas_to_add,
+                ids=ids_to_add
+            )
+            logging.info(f"Successfully added {len(documents_to_add)} new tweets to ChromaDB.")
+        except Exception as e:
+            logging.error(f"ERROR: Failed to add documents to ChromaDB: {e}")
     else:
-        print("✅ No new tweets to add. ChromaDB is up to date.")
+        logging.info("No new tweets to add to ChromaDB.")
 
-    print(f"📊 Total documents in collection '{CHROMA_COLLECTION_NAME}': {collection.count()}")
+    logging.info(f"Total documents in ChromaDB collection '{CHROMA_COLLECTION_NAME}': {collection.count()}")
     return collection
 
-
-# --- Main ---
+# --- Main Execution Block ---
 if __name__ == "__main__":
-    print("--- Starting Knowledge Base Builder ---")
-    bookmarks = load_bookmarks(BOOKMARKS_FILE)
-    if bookmarks:
-        create_or_update_knowledge_base(bookmarks)
-    print("--- Knowledge Base Builder Finished ---")
+    logging.info("Starting knowledge base creation process...")
+    
+    all_bookmarks = load_bookmarks(BOOKMARKS_FILE)
+
+    if all_bookmarks:
+        chroma_collection = create_or_update_knowledge_base(all_bookmarks)
+    
+    logging.info("Knowledge base creation process finished.")
+
