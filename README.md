@@ -4,7 +4,7 @@
 
 Experience the live application deployed on Render: [https://twitter-bookmark-chatbot.onrender.com](https://twitter-bookmark-chatbot.onrender.com)
 
-![alt text](image.png)
+![App Screenshot](assets/image.png)
 
 ## ✨ Project Overview
 
@@ -103,7 +103,7 @@ Leveraging LangChain's powerful abstractions (a foundational framework for build
 
 ---
 
-![alt text](image-1.png)
+![Example Chat UI](assets/image-1.png)
 
 ## 📂 Project Structure
 
@@ -217,7 +217,7 @@ python twitter_scraper.py
 
 ✅ **Screenshot Tip:**
 
-![alt text](image-2.png)
+![Scraper Login Screenshot](assets/image-2.png)
 
 ### Step 3: Allow Scrolling & Scraping
 
@@ -230,7 +230,7 @@ python twitter_scraper.py
 ✅ **Screenshot Tip:**  
 Scrolling activity during Scraping:
 
-![alt text](image-3.png)
+![Scraper Scroll Screenshot](assets/image-3.png)
 
 ### Step 4: Move `bookmarks.json` to the Project Root
 
@@ -241,7 +241,7 @@ mv bookmarks.json ../bookmarks.json
 cd ..
 ```
 
-![alt text](image-4.png)
+![bookmarks.json confirmation](assets/image-4.png)
 
 ### 🔑 Setting Up Your Gemini API Key
 
