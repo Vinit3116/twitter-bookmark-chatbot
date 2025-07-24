@@ -344,6 +344,6 @@ tempfile.mkdtemp()
 
 ## 📞 Contact
 
-**Your Name**: **Vinit Patel**  
+**Name**: **Vinit Patel**  
 **GitHub**: [https://github.com/Vinit3116](https://github.com/Vinit3116)  
 **LinkedIn**: [https://www.linkedin.com/in/vinitpatel31](https://www.linkedin.com/in/vinitpatel31)
