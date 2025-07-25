@@ -25,7 +25,7 @@ Crucially, your data stays private — all processing is done in-memory with no 
 
 - 🔎 Scrape your Twitter/X bookmarks using a custom Playwright-based scraper
 - 💾 Embed and store tweet content using Google Gemini embeddings + ChromaDB
-- 💬 Chat with your bookmarks via LangChain's `ConversationalRetrievalChain`
+- 💬 Chat with your bookmarks using a custom LangChain + Gemini-powered retrieval and filtering agent
 - 🧠 Session-based memory to keep conversation context
 - 📁 Local development & Render-ready deployment
 - ✅ Secure `.env` support (API keys never hardcoded)
@@ -71,11 +71,11 @@ The application uses a robust **Retrieval Augmented Generation (RAG)** architect
 
 ### 🧠 5. LangChain Chatbot Initialization
 
-Leveraging LangChain's powerful abstractions (a foundational framework for building LLM applications, including those that might evolve into more complex LangGraph agents), a `ConversationalRetrievalChain` is meticulously set up with:
+Leveraging LangChain's powerful abstractions (a foundational framework for building LLM applications, including those that might evolve into more complex LangGraph agents), A custom `LangChain-based retrieval and filtering` agent is set up with:
 
-- 💬 **Gemini 2.5 Flash** (acting as the core LLM for generating responses)
-- 📚 **ChromaDB** (serving as the vector store for efficient semantic search over your bookmarked tweets)
-- 🧵 **ConversationBufferMemory** (crucial for maintaining session history and enabling multi-turn dialogue)
+- 💬 Gemini 2.5 Flash (core LLM for generating responses)
+- 📚 ChromaDB (vector store for efficient semantic search)
+- Session chat history is managed via the Streamlit frontend.
 
 ---
 
@@ -293,9 +293,10 @@ The app embeds your tweets using **Gemini embeddings** and loads them into a tem
 
 You can now ask natural language questions such as:
 
-> • “What are the Hyderabad weather alerts this week?”  
-> • “List all cricket-related tweets”  
-> • “What happened around July 21st?”
+> • “Show my most recent tweet”  
+> • “List tweets about cricket”  
+> • “Show tweets about Elon Musk”
+> • “What are positive tweets about AI?”
 
 #### 🔁 Ongoing Context
 
