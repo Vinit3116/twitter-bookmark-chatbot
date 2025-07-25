@@ -41,9 +41,12 @@ The application uses a robust **Retrieval Augmented Generation (RAG)** architect
 ### 🧾 1. Bookmark Scraping (Pre-Step)
 
 - Run `scraper/twitter_scraper.py` locally.
-- Uses **Playwright** for browser automation and manual login to Twitter/X.
-- Automatically scrolls through your bookmarks and extracts all tweets.
-- Saves data as `bookmarks.json`.
+- A **Playwright-controlled browser window** will open.
+- 🔐 **Manual Login Required:** Log into your Twitter/X account manually in the opened browser. Complete any CAPTCHA or 2FA challenges if prompted.
+- ✅ **Automatic Bookmark Navigation:**  
+  Once login is detected, the scraper will automatically navigate to your bookmarks page and start scraping—no need to hit Enter or wait a fixed time.
+- 🧾 Watch your terminal for updates (e.g., `Loaded 15 tweets...`).
+- 🛑 The process finishes when scraping is complete, saving your `bookmarks.json` in the `scraper/` folder.
 
 ---
 
@@ -298,11 +301,16 @@ You can now ask natural language questions such as:
 > • “Show tweets about Elon Musk”
 > • “What are positive tweets about AI?”
 
-#### 🔁 Ongoing Context
+#### 🔁 Ongoing Context & Intelligent Follow-Ups
 
-Thanks to **LangChain's conversational memory**, your chat history is preserved for follow-up questions during the session.
+- The chatbot now remembers the _last set of results_ in your conversation (“simple memory”).
+- You can ask follow-up questions like “show the most liked one,” “another tweet about this,” or “more positive ones,” and the chatbot applies your query to the previous answers.
+- For person/entity queries (e.g., “Any mention of Mohammed Siraj?”), the bot filters strictly to show only tweets that _actually_ mention that person—never irrelevant results.
 
----
+### 🆕 Recent Improvements
+
+- **Streamlined scraping:** After login, you’re taken straight to bookmarks and scraping starts automatically.
+- **Smarter chat experience:** The chatbot understands follow-up queries in context, and is stricter about matching exact topics/entities in your saved tweets.
 
 ## 🌐 Deployment
 
